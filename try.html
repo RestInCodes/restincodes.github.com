@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>rolling it</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #f0f0f0;
+            margin: 0px;
+            overflow: hidden;
+        }
+        #oldie { background-color: #ddd !important }
+    </style>
+</head>
+<body>
+
+<script src="js/three.min.js"></script>
+
+<script src="js/game.js"></script>
+
+<script src="js/Detector.js"></script>
+
+<script>
+    if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+    //定义变量
+    var container;
+    var camera, scene, renderer;
+    var plane, cube;
+    var mouse, raycaster;
+    var rollOverMesh, rollOverMaterial;
+    var cubeGeo, cubeMaterial;
+    var boxes = [];
+    var voxel1;
+    var personBody;
+    var isDowm=false;
+    var isUp=false;
+    var isLeft=false;
+    var isRight=false;
+    var personIsDowm=false;
+    var personIsUp=false;
+    var personIsLeft=false;
+    var personIsRight=false;
+    //var state=0;
+    var terminals=[];
+    var lon = 45, lat = 45;
+    var phi = 0, theta = 0;
+    var walls=[];
+    var maxNum=8;
+
+
+
+    //初始化
+    init();
+
+    //初始化函数
+    function init() {
+        //alert("aaa");
+        container = document.createElement( 'div' );
+        document.body.appendChild( container );
+        camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
+        camera.position.set( 500, 800, 1300 );
+        camera.lookAt( new THREE.Vector3() );
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color( 0xf0f0f0 );
+
+
+        //alert("aaaa");
+        // 放入箱子
+        cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
+        voxel1 = new THREE.Mesh( cubeGeo, createNormalMateril() );
+        //alert("aaaa");
+        voxel1.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+        //alert("aaaa");
+        // var axes = new THREE.AxisHelper(1000);
+        // voxel1.add(axes);
+        scene.add( voxel1 );
+        boxes.push( voxel1 );
+        //alert("aaaa");
+
+
+        // 网格绘制
+        var gridHelper = new THREE.GridHelper( maxNum*100, 2*maxNum );
+        scene.add( gridHelper );
+
+        //alert("aaaa");
+        //加入棋盘
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        var geometry = new THREE.PlaneBufferGeometry( maxNum*100, maxNum*100 );
+        geometry.rotateX( - Math.PI / 2 );
+        plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+        scene.add( plane );
+        //objects.push( plane );
+
+        //alert("aaaa");
+        //加入终点
+        var terminalGeometry=new THREE.PlaneBufferGeometry( 50, 50 );
+        terminalGeometry.rotateX( - Math.PI / 2 );
+        var terminalMeterial=new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+        var termianal=new THREE.Mesh(terminalGeometry,terminalMeterial);
+        termianal.position.set(250,0,150);
+        termianal.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+        termianal.position.y=0;
+        scene.add(termianal);
+        terminals.push(termianal);
+
+        //alert("aaaa");
+        //加入小人
+        var personHeadGeometry= new THREE.SphereGeometry( 14, 32, 32 );
+        var personHeadMaterial=new THREE.MeshBasicMaterial( {color: 0xff00ff} );
+        var personHead=new THREE.Mesh( personHeadGeometry, personHeadMaterial );
+        var personBodyGeometry=new THREE.ConeGeometry( 20, 40, 32 );
+        var personBodyMaterial=new THREE.MeshBasicMaterial( {color: 0x00f1f1} );
+        personBody=new THREE.Mesh( personBodyGeometry, personBodyMaterial );
+        //personHead.position=(0,28,0);
+        personBody.add(personHead);
+        //personHead.position=(0,28,0);
+        personBody.position.set(-250,0,150);
+        personBody.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+        personBody.position.y=20;
+        personHead.position.y+=22;
+        scene.add(personBody);
+
+
+        drawOuterWall(maxNum);
+        drawWall(5,-3);
+        //加入墙
+        // var wallGeometry=new THREE.BoxGeometry( 50, 50, 50 );
+        // //var wallMaterial=new THREE.MeshBasicMaterial( {color: 0xfffd91} );
+        // var wallMaterial=new THREE.MeshBasicMaterial( {color: 0xf5ff72} );
+        // //var wallMaterial=new THREE.MeshBasicMaterial( {color: 0x1535f7} );
+        // var wall=new THREE.Mesh(wallGeometry,wallMaterial);
+        // wall.position.set(250,0,-150);
+        // wall.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+        // wall.position.y=25;
+        //
+        // scene.add(wall);
+        // walls.push(wall);
+        // var hex  = 0x404040;
+        // var bbox = new THREE.BoundingBoxHelper( wall, hex );
+        // bbox.update();
+        // scene.add( bbox );
+
+
+
+
+        // 加入灯光
+        var ambientLight = new THREE.AmbientLight( 0x606060 );
+        scene.add( ambientLight );
+        var directionalLight = new THREE.DirectionalLight( 0xffffff );
+        directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+        scene.add( directionalLight );
+
+
+
+        renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        container.appendChild( renderer.domElement );
+
+
+        //事件的监听
+        // document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+        // document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+         document.addEventListener( 'keydown', onDocumentKeyDown, false );
+        document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+        document.addEventListener( 'wheel', onDocumentMouseWheel, false );
+        // document.addEventListener( 'keyup', onDocumentKeyUp, false );
+         window.addEventListener( 'resize', onWindowResize, false );
+
+
+        //初始化颜色
+        initColor();
+        //alert("aaaa");
+        render();
+        //alert("aaaa");
+    }
+
+
+    //界面大小
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+    }
+
+    function onDocumentKeyDown( event ) {
+        //alert(event.keyCode);
+        //console.log(event.keyCode);
+        if(!personIsRight && !personIsLeft && !personIsUp && !personIsDowm){
+            if(camera.position.z>0 && abs(camera.position.x)<=abs(camera.position.z)){
+                switch( event.keyCode ) {
+                    case 40: personIsDowm=true; break;
+                    case 83: personIsDowm=true; break;
+                    case 38:personIsUp=true;break;
+                    case 87:personIsUp=true;break;
+                    case 37:personIsLeft=true;break;
+                    case 65:personIsLeft=true;break;
+                    case 39:personIsRight=true;break;
+                    case 68:personIsRight=true;break;
+                }
+            }else if(camera.position.z<0 && abs(camera.position.x)<=abs(camera.position.z)){
+                switch( event.keyCode ) {
+                    case 40: personIsUp=true; break;
+                    case 83: personIsUp=true; break;
+                    case 38:personIsDowm=true;break;
+                    case 87:personIsDowm=true;break;
+                    case 37:personIsRight=true;break;
+                    case 65:personIsRight=true;break;
+                    case 39:personIsLeft=true;break;
+                    case 68:personIsLeft=true;break;
+                }
+            }else if(camera.position.x>0 && abs(camera.position.x)>abs(camera.position.z)){
+                switch( event.keyCode ) {
+                    case 40: personIsRight=true; break;
+                    case 83: personIsRight=true; break;
+                    case 38:personIsLeft=true;break;
+                    case 87:personIsLeft=true;break;
+                    case 37:personIsDowm=true;break;
+                    case 65:personIsDowm=true;break;
+                    case 39:personIsUp=true;break;
+                    case 68:personIsUp=true;break;
+                }
+            }else if(camera.position.x<0 && abs(camera.position.x)>abs(camera.position.z)){
+                switch( event.keyCode ) {
+                    case 40: personIsLeft=true; break;
+                    case 83: personIsLeft=true; break;
+                    case 38:personIsRight=true;break;
+                    case 87:personIsRight=true;break;
+                    case 37:personIsUp=true;break;
+                    case 65:personIsUp=true;break;
+                    case 39:personIsDowm=true;break;
+                    case 68:personIsDowm=true;break;
+                    //case 13:alert(camera.position.x+","+camera.position.y+","+camera.position.z);break;
+                }
+            }
+        }
+    }
+
+
+    function onDocumentMouseDown( event ) {
+        event.preventDefault();
+        onPointerDownPointerX = event.clientX;
+        onPointerDownPointerY = event.clientY;
+        onPointerDownLon = lon;
+        onPointerDownLat = lat;
+        document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+        document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+    }
+    function onDocumentMouseMove( event ) {
+        lon = ( event.clientX - onPointerDownPointerX ) * 0.1 + onPointerDownLon;
+        lat = ( event.clientY - onPointerDownPointerY ) * 0.1 + onPointerDownLat;
+    }
+    function onDocumentMouseUp( event ) {
+        document.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+        document.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+    }
+    function onDocumentMouseWheel( event ) {
+        //alert(camera.fov);
+        var fov = camera.fov + event.deltaY * 0.05;
+        camera.fov = THREE.Math.clamp( fov, 10, 75 );
+        //camera.fov=fov();
+        camera.updateProjectionMatrix();
+    }
+
+
+
+    //渲染函数
+    function render() {
+        requestAnimationFrame(render);
+
+        //物体的移动
+        moveBox();
+        movePerson();
+
+
+        //camera的调整
+        phi = THREE.Math.degToRad( 90 - lat );
+        theta = THREE.Math.degToRad( lon );
+        camera.position.x = 500 * 2 * Math.sin( phi ) * Math.cos( theta );
+        camera.position.y = 800 * 1.414213562 * Math.cos( phi );
+        camera.position.z = 1300 * 2 * Math.sin( phi ) * Math.sin( theta );
+        camera.lookAt( scene.position );
+
+
+        renderer.render( scene, camera );
+    }
+
+
+</script>>
+
+</body>
+</html>
