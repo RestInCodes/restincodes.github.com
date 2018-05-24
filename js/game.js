@@ -514,14 +514,14 @@ function judgePersonRight() {
 
 
 function drawWall(x,y) {
-    var wallGeometry=new THREE.BoxGeometry( 50, 50, 50 );
+    var wallGeometry=new THREE.BoxGeometry( 50, 30, 50 );
     //var wallMaterial=new THREE.MeshBasicMaterial( {color: 0xfffd91} );
     var wallMaterial=new THREE.MeshBasicMaterial( {color: 0xf5ff72,opacity:1} );
     //var wallMaterial=new THREE.MeshBasicMaterial( {color: 0x1535f7} );
     var wall=new THREE.Mesh(wallGeometry,wallMaterial);
     wall.position.set(x*50,0,y*50);
     wall.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
-    wall.position.y=25;
+    wall.position.y=15;
 
     scene.add(wall);
     walls.push(wall);
